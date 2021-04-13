@@ -6,8 +6,36 @@ __CONFIG   _CP_OFF & _CPD_OFF & _WDT_OFF & _PWRTE_ON & _INTRC_OSC_NOCLKOUT & _MC
 #define RAS	PORTA, 0
 #define CAS	PORTA, 1
 #define DI	PORTA, 2
-#define DO	PORTA, 3
-#define WE  PORTA, 4
+#define DO	PORTA, 4
+#define WE	PORTA, 3
+
+write0 macro col_addr   ; row address is expected in W
+    MOVWF  PORTB        ; outputting row  address
+    BCF    RAS          ; starting to hold RAS low
+    BCF    WE           ; holding WE low, serves as RAS-to-CAS delay
+    MOVFW  col_addr
+    BCF    DI           ; putting "0" on data line
+    MOVWF  PORTB        ; outputting col address
+    BCF    CAS          ; holding CAS
+    
+    BSF    WE           ; finishing write
+    BSF    CAS          ; and holding everything up again
+    BSF    RAS
+    endm
+
+write1 macro col_addr   ; row address is expected in W
+    MOVWF  PORTB        ; outputting row  address
+    BCF    RAS          ; starting to hold RAS low
+    BCF    WE           ; holding WE low, serves as RAS-to-CAS delay
+    MOVFW  col_addr
+    BSF    DI           ; putting "1" on data line
+    MOVWF  PORTB        ; outputting col address
+    BCF    CAS          ; holding CAS
+    
+    BSF    WE           ; finishing write
+    BSF    CAS          ; and holding everything up again
+    BSF    RAS
+    endm
 
 VARS CBLOCK 0x20
     i_cycle
@@ -29,14 +57,14 @@ START
     BCF    WE
     BCF    DI
     BSF    DO
-    banksel PORTB
+    banksel CMCON
     MOVLW  0x07
     MOVWF  CMCON		; turning comparator off
     
     BSF    RAS
     BSF    CAS
     BSF    WE
-    CLRF   coulmn
+    CLRF   column
 NEXTCOL
     MOVLW  0xFF
     MOVWF  i_cycle
@@ -49,34 +77,6 @@ NEXTROW
     GOTO   NEXTCOL
 
 
-write0 macro col_addr   ; row address is expected in W
-    MOVWF  PORTB        ; outputting row  address
-    BCF    RAS          ; starting to hold RAS low
-    BCF    WE           ; holding WE low, serves as RAS-to-CAS delay
-    MOVFW  col_addr
-    BCF    DI           ; putting "0" on data line
-    MOVWF  PORTB        ; outputting col address
-    BCF    CAS          ; holding CAS
-    
-    BSF    WE           ; finishing write
-    BSF    CAS          ; and holding everything up again
-    BSF    RAS
- 
- write1 macro col_addr   ; row address is expected in W
-    MOVWF  PORTB        ; outputting row  address
-    BCF    RAS          ; starting to hold RAS low
-    BCF    WE           ; holding WE low, serves as RAS-to-CAS delay
-    MOVFW  col_addr
-    BSF    DI           ; putting "1" on data line
-    MOVWF  PORTB        ; outputting col address
-    BCF    CAS          ; holding CAS
-    
-    BSF    WE           ; finishing write
-    BSF    CAS          ; and holding everything up again
-    BSF    RAS
 
- 
-    endm
-    
 
     END
