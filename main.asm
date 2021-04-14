@@ -7,8 +7,9 @@ __CONFIG   _CP_OFF & _CPD_OFF & _WDT_OFF & _PWRTE_ON & _HS_OSC & _MCLRE_OFF & _L
 #define RAS	PORTA, 0
 #define CAS	PORTA, 1
 #define DI	PORTA, 2
-#define DO	PORTA, 4
+#define DO	PORTA, 5
 #define WE	PORTA, 3
+#define LED	PORTA, 4
 
 write0 macro col_addr   ; row address is expected in W
     MOVWF  PORTB        ; outputting row  address
@@ -42,6 +43,7 @@ readm macro col_addr    ; row address is expected in W, result returns in W
     MOVFW  col_addr     ; serves as RAS-to-CAS delay
     MOVWF  PORTB        ; outputting col address
     BCF    CAS          ; holding CAS
+    NOP
     MOVFW  PORTA        ; reading value
     BSF    CAS          ; and holding everything up again
     BSF    RAS
@@ -69,6 +71,7 @@ START
     BCF    WE
     BCF    DI
     BSF    DO
+    BCF    LED
     banksel CMCON
     MOVLW  0x07
     MOVWF  CMCON		; turning comparator off
@@ -80,9 +83,13 @@ START
 NEXTCOL
     MOVLW  0xFF
     MOVWF  i_cycle
+    BCF    LED                 ; turn LED off
     write1 column
     MOVLW  0xFF
     readm  column
+    ANDLW  00100000b           ; leave only input value
+    BTFSS  STATUS, Z
+    BSF    LED                 ; turn on LED if there was 1
 NEXTROW
     MOVFW  i_cycle
     write0 column
