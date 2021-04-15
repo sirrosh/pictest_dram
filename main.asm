@@ -54,19 +54,21 @@ readm macro col_addr    ; row address is expected in W, result returns in W
 VARS CBLOCK 0x20
     i_cycle
     column
+    row
     ENDC
 
-RES_VECT CODE    0x0000          ; processor reset vector
-    NOP                             ; for ICD
+RES_VECT CODE    0x0000        ; processor reset vector
+    NOP                        ; for ICD
     GOTO   START               ; let's start
 
-INT_VECT CODE    0x0004		; interrupt vector stub
+INT_VECT CODE    0x0004        ; interrupt vector stub
     RETFIE
 
 START
+;=== Initializing the MCU ===
     banksel TRISB
-    CLRF   TRISB                ; port B to output
-    BCF    RAS			; configure outputs
+    CLRF   TRISB               ; port B to output
+    BCF    RAS                 ; configure outputs
     BCF    CAS
     BCF    WE
     BCF    DI
@@ -74,30 +76,42 @@ START
     BCF    LED
     banksel CMCON
     MOVLW  0x07
-    MOVWF  CMCON		; turning comparator off
+    MOVWF  CMCON               ; turning comparator off
 
-    BSF    RAS
+    BSF    RAS                 ; setting up the signals
     BSF    CAS
     BSF    WE
     CLRF   column
-NEXTCOL
-    MOVLW  0xFF
-    MOVWF  i_cycle
-    BCF    LED                 ; turn LED off
+    CLRF   row
+
+;=== Here goes the purpose ===
+ONCEMORE
+;== trying to write and read back 1
+    MOVFW  row
     write1 column
-    MOVLW  0xFF
+    MOVFW  row
+    readm  column
+    ANDLW  00100000b           ; leave only input value
+    BTFSC  STATUS, Z
+    GOTO   BADDATA             ; should be 1 instead of 0
+    BSF    LED                 ; turn on LED if there was 1
+;== trying to write and read back 0
+    MOVFW  row
+    write0 column
+    MOVFW  row
     readm  column
     ANDLW  00100000b           ; leave only input value
     BTFSS  STATUS, Z
-    BSF    LED                 ; turn on LED if there was 1
-NEXTROW
-    MOVFW  i_cycle
-    write0 column
-    DECFSZ i_cycle
-    GOTO   NEXTROW
+    GOTO   BADDATA             ; should be 0 instead of 1
+    BCF    LED                 ; turn off LED if there was 0
+    INCFSZ row
+    GOTO   ONCEMORE
     INCF   column
-    GOTO   NEXTCOL
+    GOTO   ONCEMORE
 
+
+BADDATA
+    GOTO   $                   ; just hang there for now, LED port holds errorneous data
 
 
 
